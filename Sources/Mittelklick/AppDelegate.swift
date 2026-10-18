@@ -21,7 +21,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private let defaults = UserDefaults.standard
     private var trustTimer: Timer?
     private var restartWork: DispatchWorkItem?
-    private var lastLeftDown: TimeInterval = 0
 
     /// Finger für den Mittelklick per Trackpad, 0 = aus.
     private var fingers: Int {
@@ -47,13 +46,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
         recognizer.fingers = fingers
         recognizer.debug = defaults.bool(forKey: "debug")
-        recognizer.onTap = { [weak self] in
-            // Mit vier Fingern gedrückt statt getippt: Das ist schon ein Linksklick, kein zweiter Klick dazu.
-            guard let self, ProcessInfo.processInfo.systemUptime - lastLeftDown > 0.5 else { return }
+        recognizer.onTap = {
+            // Mit vier Fingern gedrückt statt getippt ist schon ein Linksklick, und beim Schreiben können Handballen
+            // wie ein Tippen aussehen. Abgefragt wird nur, wann zuletzt geklickt oder getippt wurde, nicht was.
+            func secondsSince(_ type: CGEventType) -> Double {
+                CGEventSource.secondsSinceLastEventType(.hidSystemState, eventType: type)
+            }
+            guard secondsSince(.leftMouseDown) > 0.5, secondsSince(.keyDown) > 0.5 else {
+                if recognizer.debug { log.notice("Unterdrückt: kurz zuvor geklickt oder getippt") }
+                return
+            }
             Clicks.middleClick()
-        }
-        NSEvent.addGlobalMonitorForEvents(matching: .leftMouseDown) { [weak self] _ in
-            self?.lastLeftDown = ProcessInfo.processInfo.systemUptime
         }
         startTouches()
 
@@ -105,6 +108,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     private func startTouches() {
+        recognizer.reset()
         if mk_start(onFrame) < 0 { log.error("MultitouchSupport nicht verfügbar") }
     }
 
@@ -144,7 +148,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     @objc private func openAccessibility() {
-        waitForTrust(prompt: true)
+        waitForTrust(prompt: false)
         NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")!)
     }
 

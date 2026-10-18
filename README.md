@@ -15,9 +15,10 @@ Drei Finger vertragen sich nicht mit „Nachschlagen: Mit drei Fingern tippen“
 ## Wie es funktioniert
 
 1. Das private `MultitouchSupport.framework` von macOS liefert die rohen Kontakte des Trackpads, Frame für Frame (`MTDeviceCreateList`, `MTRegisterContactFrameCallbackWithRefcon`, `MTDeviceStart`). Mittelklick lädt es zur Laufzeit per `dlopen` (siehe `Sources/MTBridge`).
-2. `TapRecognizer` wertet das als Tippen, wenn genau die eingestellte Zahl Finger aufsetzt, sich kaum bewegt (höchstens 4 % der Fläche) und nach spätestens 0,3 s wieder abhebt.
-3. `Clicks.middleClick()` erzeugt `otherMouseDown` und `otherMouseUp` mit der mittleren Taste als `CGEvent` und schickt sie ins System.
-4. Für Fn und Linksklick schreibt ein `CGEventTap` Linksklicks mit gedrückter Fn-Taste in Mittelklicks um.
+2. `TapRecognizer` wertet das als Tippen, wenn genau die eingestellte Zahl Finger aufsetzt, sich kaum bewegt (höchstens 4 % der Fläche) und nach spätestens 0,4 s wieder abhebt.
+3. Kam in der letzten halben Sekunde ein Linksklick (mit vier Fingern gedrückt statt getippt) oder ein Tastendruck (Handballen beim Schreiben), passiert nichts. Abgefragt wird dafür nur der Zeitpunkt, nicht welche Taste.
+4. `Clicks.middleClick()` erzeugt `otherMouseDown` und `otherMouseUp` mit der mittleren Taste als `CGEvent` und schickt sie ins System.
+5. Für Fn und Linksklick schreibt ein `CGEventTap` Linksklicks mit gedrückter Fn-Taste in Mittelklicks um.
 
 Wird ein Magic Trackpad verbunden oder getrennt oder wacht der Mac auf, baut Mittelklick die Geräteliste neu auf.
 
@@ -30,11 +31,11 @@ Mittelklick braucht **Bedienungshilfen** (Systemeinstellungen › Datenschutz & 
 Mittelklick enthält keinen Netzwerkcode:
 
 ```sh
-otool -L ~/Applications/Mittelklick.app/Contents/MacOS/Mittelklick        # kein CFNetwork, kein Network.framework
-nm -u ~/Applications/Mittelklick.app/Contents/MacOS/Mittelklick | grep -i urlsession   # leer
+otool -L /Applications/Mittelklick.app/Contents/MacOS/Mittelklick        # kein CFNetwork, kein Network.framework
+nm -u /Applications/Mittelklick.app/Contents/MacOS/Mittelklick | grep -i urlsession   # leer
 ```
 
-Vom Trackpad werden nur Position und Zustand der Kontakte gelesen und sofort verworfen.
+Vom Trackpad werden nur Position und Zustand der Kontakte gelesen und sofort verworfen. Der `CGEventTap` für Fn und Linksklick sieht ausschließlich Mausereignisse, keine Tastatur.
 
 ## Installation
 

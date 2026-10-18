@@ -11,6 +11,11 @@ final class TapRecognizer {
         get { lock.withLock { _fingers } }
         set { lock.withLock { _fingers = newValue; gestures.removeAll() } }
     }
+
+    /// Verwirft halbe Gesten, etwa wenn die Geräte neu gestartet werden und das Abheben nie ankommt.
+    func reset() {
+        lock.withLock { gestures.removeAll() }
+    }
     var onTap: (() -> Void)?
     /// Schreibt jede beendete Geste ins Systemprotokoll, Kategorie „tap“.
     /// Einschalten mit `defaults write de.wiredframe.mittelklick debug -bool true` und Neustart.
@@ -19,7 +24,7 @@ final class TapRecognizer {
     private var _fingers = 4
 
     /// Länger gehaltene Finger sind kein Tippen mehr.
-    private let maxDuration = 0.3
+    private let maxDuration = 0.4
     /// Weiter als das (normalisiert, 1 = ganze Breite) bewegt, gilt als Wischen.
     private let maxMovement: Float = 0.04
 
