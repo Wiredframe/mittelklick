@@ -36,6 +36,30 @@ nm -u ~/Applications/Mittelklick.app/Contents/MacOS/Mittelklick | grep -i urlses
 
 Vom Trackpad werden nur Position und Zustand der Kontakte gelesen und sofort verworfen.
 
+## Installation
+
+```sh
+brew install --cask wiredframe/tap/mittelklick
+```
+
+Oder `Mittelklick-<Version>.zip` unter [Releases](../../releases) laden, entpacken und `Mittelklick.app` nach `/Applications` ziehen. Die App ist signiert, aber nicht notarisiert. Blockiert macOS den ersten Start, hilft „Trotzdem öffnen“ unter Datenschutz & Sicherheit oder:
+
+```sh
+xattr -dr com.apple.quarantine /Applications/Mittelklick.app
+```
+
+Läuft noch Middle oder eine ähnliche App mit derselben Geste, kommt jeder Mittelklick doppelt an. Dann die andere App beenden und dort „Start beim Login“ abschalten.
+
+## Fehlersuche
+
+Ein Protokoll jeder Geste (Fingerzahl, Dauer, Ergebnis) schaltet man so ein und liest es mit:
+
+```sh
+defaults write de.wiredframe.mittelklick debug -bool true   # danach Mittelklick neu starten
+log stream --predicate 'subsystem == "de.wiredframe.mittelklick"'
+defaults delete de.wiredframe.mittelklick debug             # wieder aus
+```
+
 ## Bauen
 
 ```sh

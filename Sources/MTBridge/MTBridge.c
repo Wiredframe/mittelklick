@@ -105,13 +105,17 @@ void mk_watch_devices(void (*changed)(void)) {
     deviceChanged = changed;
     IONotificationPortRef port = IONotificationPortCreate(kIOMainPortDefault);
     CFRunLoopAddSource(CFRunLoopGetMain(), IONotificationPortGetRunLoopSource(port), kCFRunLoopDefaultMode);
+    // Eingebaute Trackpads hängen an AppleMultitouchDevice, per Bluetooth verbundene je nach Modell nur am HID-Treiber.
+    const char *classes[] = { "AppleMultitouchDevice", "AppleMultitouchTrackpadHIDEventDriver" };
     const io_name_t types[] = { kIOFirstMatchNotification, kIOTerminatedNotification };
-    for (int i = 0; i < 2; i++) {
-        io_iterator_t iterator;
-        if (IOServiceAddMatchingNotification(port, types[i], IOServiceMatching("AppleMultitouchDevice"),
-                                             onDeviceNotification, NULL, &iterator) == KERN_SUCCESS) {
-            // Den Iterator einmal leeren, damit er scharf ist; vorhandene Geräte lösen dabei nichts aus.
-            onDeviceNotification((void *)1, iterator);
+    for (int c = 0; c < 2; c++) {
+        for (int i = 0; i < 2; i++) {
+            io_iterator_t iterator;
+            if (IOServiceAddMatchingNotification(port, types[i], IOServiceMatching(classes[c]),
+                                                 onDeviceNotification, NULL, &iterator) == KERN_SUCCESS) {
+                // Den Iterator einmal leeren, damit er scharf ist; vorhandene Geräte lösen dabei nichts aus.
+                onDeviceNotification((void *)1, iterator);
+            }
         }
     }
 }

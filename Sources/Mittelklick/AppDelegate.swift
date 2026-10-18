@@ -20,6 +20,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private let fnClick = FnClick()
     private let defaults = UserDefaults.standard
     private var trustTimer: Timer?
+    private var restartWork: DispatchWorkItem?
+    private var lastLeftDown: TimeInterval = 0
 
     /// Finger für den Mittelklick per Trackpad, 0 = aus.
     private var fingers: Int {
@@ -44,7 +46,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         statusItem.isVisible = !hideIcon
 
         recognizer.fingers = fingers
-        recognizer.onTap = { Clicks.middleClick() }
+        recognizer.debug = defaults.bool(forKey: "debug")
+        recognizer.onTap = { [weak self] in
+            // Mit vier Fingern gedrückt statt getippt: Das ist schon ein Linksklick, kein zweiter Klick dazu.
+            guard let self, ProcessInfo.processInfo.systemUptime - lastLeftDown > 0.5 else { return }
+            Clicks.middleClick()
+        }
+        NSEvent.addGlobalMonitorForEvents(matching: .leftMouseDown) { [weak self] _ in
+            self?.lastLeftDown = ProcessInfo.processInfo.systemUptime
+        }
         startTouches()
 
         // Neue oder getrennte Geräte (Magic Trackpad) und Aufwachen: Geräteliste neu aufbauen.
@@ -95,11 +105,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     private func startTouches() {
-        if mk_start(onFrame) < 0 { NSLog("Mittelklick: MultitouchSupport nicht verfügbar") }
+        if mk_start(onFrame) < 0 { log.error("MultitouchSupport nicht verfügbar") }
     }
 
+    /// Mehrere Meldungen kurz hintereinander (ein Gerät meldet sich über mehrere Treiber) ergeben einen Neustart.
     private func restartTouches(after delay: TimeInterval) {
-        DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in self?.startTouches() }
+        restartWork?.cancel()
+        let work = DispatchWorkItem { [weak self] in self?.startTouches() }
+        restartWork = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: work)
     }
 
     /// Klicks senden und Fn abfangen geht erst mit Bedienungshilfen-Freigabe, bis dahin wird nachgefragt.
@@ -146,7 +160,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 try SMAppService.mainApp.register()
             }
         } catch {
-            NSLog("Mittelklick: Anmeldeobjekt nicht änderbar: \(error)")
+            log.error("Anmeldeobjekt nicht änderbar: \(error, privacy: .public)")
         }
     }
 }

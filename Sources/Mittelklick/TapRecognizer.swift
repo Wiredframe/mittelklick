@@ -1,11 +1,22 @@
 import Foundation
 import MTBridge
+import os
+
+let log = Logger(subsystem: "de.wiredframe.mittelklick", category: "tap")
 
 /// Erkennt ein kurzes Tippen mit einer bestimmten Anzahl Finger, getrennt je Gerät.
 final class TapRecognizer {
     /// Anzahl Finger für den Mittelklick, 0 schaltet die Erkennung ab.
-    var fingers = 4
+    var fingers: Int {
+        get { lock.withLock { _fingers } }
+        set { lock.withLock { _fingers = newValue; gestures.removeAll() } }
+    }
     var onTap: (() -> Void)?
+    /// Schreibt jede beendete Geste ins Systemprotokoll, Kategorie „tap“.
+    /// Einschalten mit `defaults write de.wiredframe.mittelklick debug -bool true` und Neustart.
+    var debug = false
+
+    private var _fingers = 4
 
     /// Länger gehaltene Finger sind kein Tippen mehr.
     private let maxDuration = 0.3
@@ -28,14 +39,18 @@ final class TapRecognizer {
     func handle(device: UInt64, touches: UnsafeBufferPointer<MKTouch>, timestamp: Double) {
         lock.lock()
         defer { lock.unlock() }
-        guard fingers > 0 else { gestures.removeAll(); return }
+        guard _fingers > 0 else { gestures.removeAll(); return }
 
         let active = touches.filter(Self.isTouching)
         if active.isEmpty {
-            if let gesture = gestures.removeValue(forKey: device),
-               gesture.valid, gesture.maxFingers == fingers, timestamp - gesture.start <= maxDuration {
-                DispatchQueue.main.async { [weak self] in self?.onTap?() }
+            guard let gesture = gestures.removeValue(forKey: device) else { return }
+            let duration = timestamp - gesture.start
+            let isTap = gesture.valid && gesture.maxFingers == _fingers && duration <= maxDuration
+            if debug {
+                let result = isTap ? "Mittelklick" : "nichts"
+                log.notice("Geste \(gesture.maxFingers, privacy: .public) Finger, \(Int(duration * 1000), privacy: .public) ms, gültig \(gesture.valid, privacy: .public): \(result, privacy: .public)")
             }
+            if isTap { DispatchQueue.main.async { [weak self] in self?.onTap?() } }
             return
         }
 
@@ -49,7 +64,7 @@ final class TapRecognizer {
                 gesture.origins[id] = (touch.x, touch.y)
             }
         }
-        if gesture.maxFingers > fingers || timestamp - gesture.start > maxDuration { gesture.valid = false }
+        if gesture.maxFingers > _fingers || timestamp - gesture.start > maxDuration { gesture.valid = false }
         gestures[device] = gesture
     }
 }
