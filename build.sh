@@ -1,6 +1,6 @@
 #!/bin/zsh
-# Baut Mittelklick.app (Universal: Apple Silicon und Intel) nach build/, mit --install zusätzlich nach ~/Applications und startet es,
-# mit --zip zusätzlich build/Mittelklick-<Version>.zip für ein GitHub-Release.
+# Builds Mittelklick.app (universal: Apple silicon and Intel) into build/. --install also copies it to ~/Applications and
+# launches it, --zip also creates build/Mittelklick-<version>.zip for a GitHub release.
 set -euo pipefail
 cd "${0:A:h}"
 
@@ -15,16 +15,17 @@ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$BIN" "$APP/Contents/MacOS/"
 cp Resources/Info.plist "$APP/Contents/"
 cp Resources/AppIcon.icns "$APP/Contents/Resources/"
-# Mit Developer ID signieren, falls vorhanden: Dann bleibt die Bedienungshilfen-Freigabe über Neubauten erhalten.
+cp -R Resources/*.lproj "$APP/Contents/Resources/"
+# Sign with a Developer ID if available, so the Accessibility permission survives rebuilds.
 IDENTITY=$(security find-identity -v -p codesigning | sed -n 's/.*"\(Developer ID Application: .*\)"/\1/p' | head -1)
 codesign --force --sign "${IDENTITY:--}" --options runtime "$APP"
-echo "Gebaut: $APP ($VERSION)"
+echo "Built: $APP ($VERSION)"
 
 if [[ "${1:-}" == "--zip" ]]; then
     ZIP="build/Mittelklick-$VERSION.zip"
     rm -f "$ZIP"
     ditto -c -k --keepParent "$APP" "$ZIP"
-    echo "Archiv: $ZIP"
+    echo "Archive: $ZIP"
 fi
 
 if [[ "${1:-}" == "--install" ]]; then
@@ -33,5 +34,5 @@ if [[ "${1:-}" == "--install" ]]; then
     rm -rf ~/Applications/Mittelklick.app
     ditto "$APP" ~/Applications/Mittelklick.app
     open ~/Applications/Mittelklick.app
-    echo "Installiert: ~/Applications/Mittelklick.app"
+    echo "Installed: ~/Applications/Mittelklick.app"
 fi

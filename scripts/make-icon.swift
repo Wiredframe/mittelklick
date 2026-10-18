@@ -1,9 +1,9 @@
-// Zeichnet das App-Symbol (1024 px) als PNG: swift scripts/make-icon.swift <ziel.png>
+// Draws the app icon (1024 px) as a PNG: swift scripts/make-icon.swift <target.png>
 import AppKit
 
 let size: CGFloat = 1024
 let image = NSImage(size: NSSize(width: size, height: size), flipped: false) { rect in
-    // macOS-Raster: 824 px Fläche mit 100 px Rand, Radius etwa 185 px.
+    // macOS grid: 824 px tile with a 100 px margin, corner radius about 185 px.
     let tile = rect.insetBy(dx: 100, dy: 100)
     let path = NSBezierPath(roundedRect: tile, xRadius: 185, yRadius: 185)
 

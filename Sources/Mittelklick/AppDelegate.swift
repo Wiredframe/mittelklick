@@ -3,7 +3,7 @@ import ApplicationServices
 import MTBridge
 import ServiceManagement
 
-/// Global, weil der Rückruf aus C keinen Kontext mitnehmen kann.
+/// Global because the C callback cannot carry any context.
 private let recognizer = TapRecognizer()
 
 private func onFrame(device: UInt64, touches: UnsafePointer<MKTouch>?, count: Int32, timestamp: Double) {
@@ -22,7 +22,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var trustTimer: Timer?
     private var restartWork: DispatchWorkItem?
 
-    /// Finger für den Mittelklick per Trackpad, 0 = aus.
+    /// Fingers for a middle click on the trackpad, 0 = off.
     private var fingers: Int {
         get { defaults.object(forKey: "fingers") as? Int ?? 4 }
         set { defaults.set(newValue, forKey: "fingers"); recognizer.fingers = newValue }
@@ -47,20 +47,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         recognizer.fingers = fingers
         recognizer.debug = defaults.bool(forKey: "debug")
         recognizer.onTap = {
-            // Mit vier Fingern gedrückt statt getippt ist schon ein Linksklick, und beim Schreiben können Handballen
-            // wie ein Tippen aussehen. Abgefragt wird nur, wann zuletzt geklickt oder getippt wurde, nicht was.
+            // Pressing with four fingers instead of tapping is already a left click, and palms can look like a tap
+            // while typing. Only the time of the last click or key press is queried, never which key.
             func secondsSince(_ type: CGEventType) -> Double {
                 CGEventSource.secondsSinceLastEventType(.hidSystemState, eventType: type)
             }
             guard secondsSince(.leftMouseDown) > 0.5, secondsSince(.keyDown) > 0.5 else {
-                if recognizer.debug { log.notice("Unterdrückt: kurz zuvor geklickt oder getippt") }
+                if recognizer.debug { log.notice("Suppressed: clicked or typed just before") }
                 return
             }
             Clicks.middleClick()
         }
         startTouches()
 
-        // Neue oder getrennte Geräte (Magic Trackpad) und Aufwachen: Geräteliste neu aufbauen.
+        // A Magic Trackpad connecting or disconnecting, or waking from sleep: rebuild the device list.
         mk_watch_devices { NotificationCenter.default.post(name: .devicesChanged, object: nil) }
         NotificationCenter.default.addObserver(forName: .devicesChanged, object: nil, queue: .main) { [weak self] _ in
             self?.restartTouches(after: 1)
@@ -73,7 +73,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         waitForTrust(prompt: true)
     }
 
-    /// Bei ausgeblendetem Symbol bringt ein erneuter Start (Finder, `open -a Mittelklick`) es zurück.
+    /// With the icon hidden, launching the app again (Finder, `open -a Mittelklick`) brings it back.
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
         hideIcon = false
         return false
@@ -81,38 +81,45 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     func menuNeedsUpdate(_ menu: NSMenu) {
         menu.removeAllItems()
-        menu.addItem(.sectionHeader(title: "Trackpad"))
-        for (title, count) in [("Mit drei Fingern tippen", 3), ("Mit vier Fingern tippen", 4), ("Aus", 0)] {
+        menu.addItem(.sectionHeader(title: String(localized: "Trackpad")))
+        let options = [(String(localized: "Tap with three fingers"), 3),
+                       (String(localized: "Tap with four fingers"), 4),
+                       (String(localized: "Off"), 0)]
+        for (title, count) in options {
             let item = menu.addItem(withTitle: title, action: #selector(setFingers(_:)), keyEquivalent: "")
             item.target = self
             item.tag = count
             item.state = fingers == count ? .on : .off
         }
         menu.addItem(.separator())
-        let fn = menu.addItem(withTitle: "Fn und Linksklick als Mittelklick", action: #selector(toggleFn), keyEquivalent: "")
+        let fn = menu.addItem(withTitle: String(localized: "Fn + click as middle click"), action: #selector(toggleFn),
+                              keyEquivalent: "")
         fn.target = self
         fn.state = fnEnabled ? .on : .off
         menu.addItem(.separator())
         if !AXIsProcessTrusted() {
-            menu.addItem(withTitle: "Bedienungshilfen erlauben …", action: #selector(openAccessibility), keyEquivalent: "")
-                .target = self
+            menu.addItem(withTitle: String(localized: "Allow Accessibility …"), action: #selector(openAccessibility),
+                         keyEquivalent: "").target = self
         }
-        let login = menu.addItem(withTitle: "Beim Anmelden starten", action: #selector(toggleLogin), keyEquivalent: "")
+        let login = menu.addItem(withTitle: String(localized: "Launch at Login"), action: #selector(toggleLogin),
+                                 keyEquivalent: "")
         login.target = self
         login.state = SMAppService.mainApp.status == .enabled ? .on : .off
-        let hide = menu.addItem(withTitle: "Symbol ausblenden", action: #selector(hideStatusItem), keyEquivalent: "")
+        let hide = menu.addItem(withTitle: String(localized: "Hide Menu Bar Icon"), action: #selector(hideStatusItem),
+                                keyEquivalent: "")
         hide.target = self
-        hide.toolTip = "Zurück holt es ein erneuter Start von Mittelklick im Finder."
+        hide.toolTip = String(localized: "Launch Mittelklick again from the Finder to bring it back.")
         menu.addItem(.separator())
-        menu.addItem(withTitle: "Mittelklick beenden", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        menu.addItem(withTitle: String(localized: "Quit Mittelklick"), action: #selector(NSApplication.terminate(_:)),
+                     keyEquivalent: "q")
     }
 
     private func startTouches() {
         recognizer.reset()
-        if mk_start(onFrame) < 0 { log.error("MultitouchSupport nicht verfügbar") }
+        if mk_start(onFrame) < 0 { log.error("MultitouchSupport not available") }
     }
 
-    /// Mehrere Meldungen kurz hintereinander (ein Gerät meldet sich über mehrere Treiber) ergeben einen Neustart.
+    /// Several notifications in quick succession (one device shows up via several drivers) cause a single restart.
     private func restartTouches(after delay: TimeInterval) {
         restartWork?.cancel()
         let work = DispatchWorkItem { [weak self] in self?.startTouches() }
@@ -120,7 +127,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: work)
     }
 
-    /// Klicks senden und Fn abfangen geht erst mit Bedienungshilfen-Freigabe, bis dahin wird nachgefragt.
+    /// Posting clicks and catching Fn only work once Accessibility is granted, so keep checking until then.
     private func waitForTrust(prompt: Bool) {
         let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: prompt] as CFDictionary
         if AXIsProcessTrustedWithOptions(options) {
@@ -164,7 +171,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 try SMAppService.mainApp.register()
             }
         } catch {
-            log.error("Anmeldeobjekt nicht änderbar: \(error, privacy: .public)")
+            log.error("Could not change login item: \(error, privacy: .public)")
         }
     }
 }

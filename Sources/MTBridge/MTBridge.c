@@ -3,7 +3,7 @@
 #include <IOKit/IOKitLib.h>
 #include <dlfcn.h>
 
-// Speicherlayout eines Kontakts, wie es MultitouchSupport liefert (96 Byte, bekannt aus der Community).
+// Memory layout of a contact as delivered by MultitouchSupport (96 bytes, known from community research).
 typedef struct { float x, y; } MTPoint;
 typedef struct { MTPoint position, velocity; } MTVector;
 typedef struct {
@@ -105,7 +105,7 @@ void mk_watch_devices(void (*changed)(void)) {
     deviceChanged = changed;
     IONotificationPortRef port = IONotificationPortCreate(kIOMainPortDefault);
     CFRunLoopAddSource(CFRunLoopGetMain(), IONotificationPortGetRunLoopSource(port), kCFRunLoopDefaultMode);
-    // Eingebaute Trackpads hängen an AppleMultitouchDevice, per Bluetooth verbundene je nach Modell nur am HID-Treiber.
+    // Built-in trackpads show up as AppleMultitouchDevice, Bluetooth ones depending on the model only via the HID driver.
     const char *classes[] = { "AppleMultitouchDevice", "AppleMultitouchTrackpadHIDEventDriver" };
     const io_name_t types[] = { kIOFirstMatchNotification, kIOTerminatedNotification };
     for (int c = 0; c < 2; c++) {
@@ -113,7 +113,7 @@ void mk_watch_devices(void (*changed)(void)) {
             io_iterator_t iterator;
             if (IOServiceAddMatchingNotification(port, types[i], IOServiceMatching(classes[c]),
                                                  onDeviceNotification, NULL, &iterator) == KERN_SUCCESS) {
-                // Den Iterator einmal leeren, damit er scharf ist; vorhandene Geräte lösen dabei nichts aus.
+                // Drain the iterator once to arm it; devices already present trigger nothing.
                 onDeviceNotification((void *)1, iterator);
             }
         }

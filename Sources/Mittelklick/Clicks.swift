@@ -1,7 +1,7 @@
 import CoreGraphics
 
 enum Clicks {
-    /// Sendet einen Mittelklick an der aktuellen Zeigerposition.
+    /// Posts a middle click at the current pointer location.
     static func middleClick() {
         let location = CGEvent(source: nil)?.location ?? .zero
         let source = CGEventSource(stateID: .hidSystemState)
@@ -13,7 +13,7 @@ enum Clicks {
     }
 }
 
-/// Macht aus Fn + Linksklick einen Mittelklick, einschließlich Ziehen.
+/// Turns Fn + left click into a middle click, dragging included.
 final class FnClick {
     private var tap: CFMachPort?
     private var converting = false

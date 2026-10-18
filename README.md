@@ -2,40 +2,41 @@
 
 # Mittelklick
 
-Mittelklick per Trackpad für macOS, angelehnt an Middle. Eine Menüleisten-App ohne Fenster, ohne Netzwerk, ohne Konto.
+Middle click on the trackpad for macOS, inspired by Middle. A menu bar app without windows, network access or accounts. The name is German for "middle click".
 
-## Was es kann
+## Features
 
-- **Tippen mit drei oder vier Fingern** auf dem Trackpad (eingebaut oder Magic Trackpad) löst einen Mittelklick an der Zeigerposition aus. Standard sind vier Finger.
-- **Fn und Linksklick** als Mittelklick, auch zum Ziehen (abschaltbar, standardmäßig aus).
-- Menüleiste: Fingeranzahl, Fn-Klick, Beim Anmelden starten, Symbol ausblenden. Ein ausgeblendetes Symbol holt ein erneuter Start von Mittelklick im Finder zurück.
+- **Tap with three or four fingers** on the trackpad (built-in or Magic Trackpad) to middle click at the pointer location. Four fingers by default.
+- **Fn + left click** as a middle click, dragging included (optional, off by default).
+- Menu bar: number of fingers, Fn + click, launch at login, hide icon. A hidden icon comes back when you launch Mittelklick again from the Finder.
+- English and German.
 
-Drei Finger vertragen sich nicht mit „Nachschlagen: Mit drei Fingern tippen“ und „Mit drei Fingern bewegen“ in den Trackpad-Einstellungen von macOS. Vier Finger sind frei.
+Three fingers clash with "Look up & data detectors: Tap with three fingers" and "Three finger drag" in the macOS trackpad settings. Four fingers are free.
 
-## Wie es funktioniert
+## How it works
 
-1. Das private `MultitouchSupport.framework` von macOS liefert die rohen Kontakte des Trackpads, Frame für Frame (`MTDeviceCreateList`, `MTRegisterContactFrameCallbackWithRefcon`, `MTDeviceStart`). Mittelklick lädt es zur Laufzeit per `dlopen` (siehe `Sources/MTBridge`).
-2. `TapRecognizer` wertet das als Tippen, wenn genau die eingestellte Zahl Finger aufsetzt, sich kaum bewegt (höchstens 4 % der Fläche) und nach spätestens 0,4 s wieder abhebt.
-3. Kam in der letzten halben Sekunde ein Linksklick (mit vier Fingern gedrückt statt getippt) oder ein Tastendruck (Handballen beim Schreiben), passiert nichts. Abgefragt wird dafür nur der Zeitpunkt, nicht welche Taste.
-4. `Clicks.middleClick()` erzeugt `otherMouseDown` und `otherMouseUp` mit der mittleren Taste als `CGEvent` und schickt sie ins System.
-5. Für Fn und Linksklick schreibt ein `CGEventTap` Linksklicks mit gedrückter Fn-Taste in Mittelklicks um.
+1. The private `MultitouchSupport.framework` of macOS delivers the raw trackpad contacts frame by frame (`MTDeviceCreateList`, `MTRegisterContactFrameCallbackWithRefcon`, `MTDeviceStart`). Mittelklick loads it at runtime via `dlopen` (see `Sources/MTBridge`).
+2. `TapRecognizer` treats it as a tap when exactly the configured number of fingers touch down, barely move (at most 4 % of the surface) and lift off within 0.4 s.
+3. If there was a left click (pressing with four fingers instead of tapping) or a key press (palms while typing) within the last half second, nothing happens. Only the time is queried, never which key.
+4. `Clicks.middleClick()` creates `otherMouseDown` and `otherMouseUp` with the center button as a `CGEvent` and posts them.
+5. For Fn + left click, a `CGEventTap` rewrites left clicks with Fn held into middle clicks.
 
-Wird ein Magic Trackpad verbunden oder getrennt oder wacht der Mac auf, baut Mittelklick die Geräteliste neu auf.
+When a Magic Trackpad connects or disconnects, or the Mac wakes from sleep, Mittelklick rebuilds its device list.
 
-## Berechtigung
+## Permission
 
-Mittelklick braucht **Bedienungshilfen** (Systemeinstellungen › Datenschutz & Sicherheit › Bedienungshilfen), um Klicks zu senden und Fn-Klicks umzuschreiben. Beim ersten Start fragt macOS danach, sonst steht „Bedienungshilfen erlauben …“ im Menü.
+Mittelklick needs **Accessibility** access (System Settings › Privacy & Security › Accessibility) to post clicks and rewrite Fn clicks. macOS asks on first launch, otherwise use "Allow Accessibility …" in the menu.
 
-## Privatsphäre
+## Privacy
 
-Mittelklick enthält keinen Netzwerkcode:
+Mittelklick contains no networking code:
 
 ```sh
-otool -L /Applications/Mittelklick.app/Contents/MacOS/Mittelklick        # kein CFNetwork, kein Network.framework
-nm -u /Applications/Mittelklick.app/Contents/MacOS/Mittelklick | grep -i urlsession   # leer
+otool -L /Applications/Mittelklick.app/Contents/MacOS/Mittelklick        # no CFNetwork, no Network.framework
+nm -u /Applications/Mittelklick.app/Contents/MacOS/Mittelklick | grep -i urlsession   # empty
 ```
 
-Vom Trackpad werden nur Position und Zustand der Kontakte gelesen und sofort verworfen. Der `CGEventTap` für Fn und Linksklick sieht ausschließlich Mausereignisse, keine Tastatur.
+From the trackpad it reads only position and state of the contacts and discards them right away. The `CGEventTap` for Fn + click sees mouse events only, never the keyboard.
 
 ## Installation
 
@@ -43,36 +44,36 @@ Vom Trackpad werden nur Position und Zustand der Kontakte gelesen und sofort ver
 brew install --cask wiredframe/tap/mittelklick
 ```
 
-Oder `Mittelklick-<Version>.zip` unter [Releases](../../releases) laden, entpacken und `Mittelklick.app` nach `/Applications` ziehen. Die App ist signiert, aber nicht notarisiert. Blockiert macOS den ersten Start, hilft „Trotzdem öffnen“ unter Datenschutz & Sicherheit oder:
+Or download `Mittelklick-<version>.zip` from [Releases](../../releases), unzip it and drag `Mittelklick.app` to `/Applications`. The app is signed but not notarized. If macOS blocks the first launch, click "Open Anyway" under Privacy & Security or run:
 
 ```sh
 xattr -dr com.apple.quarantine /Applications/Mittelklick.app
 ```
 
-Läuft noch Middle oder eine ähnliche App mit derselben Geste, kommt jeder Mittelklick doppelt an. Dann die andere App beenden und dort „Start beim Login“ abschalten.
+If Middle or a similar app with the same gesture is still running, every middle click arrives twice. Quit the other app and turn off its launch at login.
 
-## Fehlersuche
+## Troubleshooting
 
-Ein Protokoll jeder Geste (Fingerzahl, Dauer, Ergebnis) schaltet man so ein und liest es mit:
+To log every gesture (fingers, duration, result):
 
 ```sh
-defaults write de.wiredframe.mittelklick debug -bool true   # danach Mittelklick neu starten
+defaults write de.wiredframe.mittelklick debug -bool true   # then relaunch Mittelklick
 log stream --predicate 'subsystem == "de.wiredframe.mittelklick"'
-defaults delete de.wiredframe.mittelklick debug             # wieder aus
+defaults delete de.wiredframe.mittelklick debug             # turn it off again
 ```
 
-## Bauen
+## Building
 
 ```sh
-./build.sh            # baut build/Mittelklick.app (Universal)
-./build.sh --install  # zusätzlich nach ~/Applications und starten
-./build.sh --zip      # zusätzlich build/Mittelklick-<Version>.zip
+./build.sh            # builds build/Mittelklick.app (universal)
+./build.sh --install  # also copies it to ~/Applications and launches it
+./build.sh --zip      # also creates build/Mittelklick-<version>.zip
 ```
 
-Ist ein Zertifikat „Developer ID Application“ im Schlüsselbund, signiert `build.sh` damit, sonst ad hoc. Mit fester Signatur bleibt die Bedienungshilfen-Freigabe über Neubauten erhalten, ad hoc muss sie nach jedem Bau neu erteilt werden.
+If a "Developer ID Application" certificate is in the keychain, `build.sh` signs with it, otherwise ad hoc. With a stable signature the Accessibility permission survives rebuilds, with an ad hoc signature it has to be granted again after every build.
 
-Voraussetzung: Xcode bzw. Swift 5.10+, macOS 14+.
+Requirements: Xcode or Swift 5.10+, macOS 14+.
 
-## Lizenz
+## License
 
 MIT

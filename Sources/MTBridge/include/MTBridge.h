@@ -1,10 +1,10 @@
-// Schmale Brücke zu Apples privatem MultitouchSupport.framework.
-// Das Framework wird zur Laufzeit per dlopen geladen, damit kein privater Header im Build nötig ist.
+// Thin bridge to Apple's private MultitouchSupport.framework.
+// The framework is loaded at runtime via dlopen, so the build needs no private headers.
 #pragma once
 #include <stdbool.h>
 #include <stdint.h>
 
-/// Ein Kontakt auf der Oberfläche, Position normalisiert auf 0…1.
+/// A contact on the surface, position normalized to 0…1.
 typedef struct {
     int identifier;
     int state;
@@ -12,14 +12,14 @@ typedef struct {
     float y;
 } MKTouch;
 
-/// Wird für jeden Frame eines Geräts aufgerufen, auf dem Thread des Frameworks.
+/// Called for every frame of a device, on the framework's thread.
 typedef void (*MKFrameHandler)(uint64_t device, const MKTouch *touches, int count, double timestamp);
 
-/// Startet alle Multitouch-Geräte. Liefert die Anzahl der gestarteten Geräte, -1 wenn das Framework fehlt.
+/// Starts all multitouch devices. Returns the number of devices started, -1 if the framework is missing.
 int mk_start(MKFrameHandler handler);
 
-/// Stoppt alle zuvor gestarteten Geräte.
+/// Stops all previously started devices.
 void mk_stop(void);
 
-/// Meldet per Rückruf auf dem Main-Runloop, wenn ein Multitouch-Gerät hinzukommt oder verschwindet.
+/// Calls back on the main run loop when a multitouch device appears or disappears.
 void mk_watch_devices(void (*changed)(void));
