@@ -5,8 +5,12 @@ set -euo pipefail
 cd "${0:A:h}"
 
 ARCHS=(--arch arm64 --arch x86_64)
-swift build -c release --disable-sandbox $ARCHS
-BIN="$(swift build -c release --disable-sandbox $ARCHS --show-bin-path)/Mittelklick"
+# Otherwise SwiftPM records the deployment target as the SDK version and macOS shows the app in the legacy look
+# (small traffic lights, old controls). Linking with the real SDK version gets the current design.
+SDK="$(xcrun --show-sdk-version)"
+FLAGS=(-c release --disable-sandbox $ARCHS -Xlinker -platform_version -Xlinker macos -Xlinker 14.0 -Xlinker "$SDK")
+swift build "${FLAGS[@]}"
+BIN="$(swift build "${FLAGS[@]}" --show-bin-path)/Mittelklick"
 VERSION=$(/usr/libexec/PlistBuddy -c "Print CFBundleShortVersionString" Resources/Info.plist)
 
 APP=build/Mittelklick.app
